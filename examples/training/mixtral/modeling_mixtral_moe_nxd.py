@@ -83,6 +83,7 @@ from neuronx_distributed.parallel_layers.layers import (
 from neuronx_distributed.parallel_layers.loss_functions import parallel_cross_entropy
 from neuronx_distributed.parallel_layers.parallel_state import (
     get_tensor_model_parallel_size,
+    get_expert_model_parallel_group,
 )
 
 
@@ -367,6 +368,7 @@ def initialize_mixtral_moe_layer(config):
         normalize_top_k_affinities=True,
         init_method=init_method,
         output_layer_init_method=init_method,
+        enable_spmd_rank=get_expert_model_parallel_group().size() > 1,
     )
 
     moe_layer = MoE(
