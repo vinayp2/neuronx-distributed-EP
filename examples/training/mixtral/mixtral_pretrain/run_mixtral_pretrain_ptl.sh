@@ -40,17 +40,17 @@ export NEURON_RT_ASYNC_EXEC_MAX_INFLIGHT_REQUESTS=7
 export MALLOC_ARENA_MAX=64
 
 # Tensor parallel degree
-: ${TP_DEGREE:=1}
+: ${TP_DEGREE:=32}
 # Pipeline parallel degree
-: ${PP_DEGREE:=1}
+: ${PP_DEGREE:=4}
 # Expert parallel degree
-: ${EP_DEGREE:=2}
+: ${EP_DEGREE:=1}
 # Total number of nodes
-: ${WORLD_SIZE:=1}
+: ${WORLD_SIZE:=16}
 if [ ! -z "$SLURM_NTASKS" ]; then
     WORLD_SIZE=$SLURM_NTASKS
 fi
-export NUM_NEURONCORES=2
+export NUM_NEURONCORES=32
 if [ $(( (NUM_NEURONCORES * WORLD_SIZE) % (TP_DEGREE * PP_DEGREE) )) -ne 0 ]; then
     echo "NUM_NEURONCORES [$NUM_NEURONCORES] * WORLD_SIZE [$WORLD_SIZE] must be divisible by TP_DEGREE [$TP_DEGREE] * PP_DEGREE [$PP_DEGREE]"
     exit 1
@@ -71,7 +71,7 @@ if [ "$DP_DEGREE" -eq 1 ]; then
 fi
 
 # global batch size
-: ${GBS:=16}
+: ${GBS:=32}
 # Micro batch size
 : ${MICRO_BS:=1}
 if [ $(( GBS % (DP_DEGREE * MICRO_BS) )) -ne 0 ]; then
@@ -114,7 +114,7 @@ done
 
 
 # sequence length
-: ${SEQ_LEN:=2048}
+: ${SEQ_LEN:=4096}
 # capacity factor
 CAPACITY_FACTOR=2.0
 # Use meta init
@@ -191,7 +191,7 @@ else
     OUTPUT_LOG=log_exe-$NODE_ID.log
 fi
 
-DEFAULT_MODEL_PATH="$SCRIPT_DIR/configs/8x1b_config.json"
+DEFAULT_MODEL_PATH="$SCRIPT_DIR/configs/8x7b_config.json"
 
 #sets model_path to 7b config if not specified
 if [ -z "$MODEL_PATH_ARG" ]; then
