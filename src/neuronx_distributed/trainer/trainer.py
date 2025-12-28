@@ -138,7 +138,8 @@ def neuronx_distributed_config(
             pipeline_model_parallel_size=config["pipeline_parallel_size"],
             expert_model_parallel_size=config["expert_parallel_size"],
             lnc_size=lnc_size,
-            context_parallel_size=config["context_parallel_size"]
+            context_parallel_size=config["context_parallel_size"], 
+            pp_aligned=config["pp_aligned"],
         )
 
     if torch.distributed.is_initialized() and parallel_state.is_global_rank_zero():
