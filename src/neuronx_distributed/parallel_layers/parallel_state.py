@@ -632,10 +632,15 @@ def initialize_model_parallel(
                 tensor_model_parallel_size,  # important: contiguous parallelism dimension
             ]
         )
+        outer_size = pipeline_model_parallel_size
+        inner_size = data_parallel_size
+        if (pp_aligned):
+            outer_size = data_parallel_size
+            inner_size = pipeline_model_parallel_size
         cluster_ranks_nonexp = cluster_ranks.reshape(
             [
-                pipeline_model_parallel_size,
-                data_parallel_size,
+                outer_size,
+                inner_size,
                 context_parallel_size,
                 tensor_model_parallel_size,  # important: contiguous parallelism dimension
             ]
@@ -676,7 +681,10 @@ def initialize_model_parallel(
     logger.info(rmsg(f"cp_groups: {replica_groups.cp_groups=}"))
     logger.info(rmsg(f"ep_model_groups: {replica_groups.ep_model_groups=}"))
     logger.info(rmsg(f"ep_data_groups: {replica_groups.ep_data_groups=}"))
-
+    logger.warning(rmsg(f"tp_groups: {replica_groups.tp_groups=}"))
+    logger.warning(rmsg(f"dp_groups: {replica_groups.dp_groups=}"))
+    logger.warning(rmsg(f"pp_groups: {replica_groups.pp_groups=}"))
+    logger.warning(f"PP alignment is: {pp_aligned} in parallel_state.py")
     if mesh_only:
         return replica_groups
 
