@@ -44,6 +44,7 @@ def neuronx_distributed_config(
     mixed_precision_config=None,
     sequential_move_factor=11,
     lnc_size=1,
+    pp_aligned=False,
 ):
     if optimizer_config is None:
         optimizer_config = {"zero_one_enabled": False, "grad_clipping": True, "max_grad_norm": 1.0}
@@ -128,6 +129,7 @@ def neuronx_distributed_config(
         "lora_config": lora_config,
         "mixed_precision_config": mixed_precision_config,
         "lnc_size": lnc_size,
+        "pp_aligned": pp_aligned,
     }
 
     if torch.distributed.is_initialized():
