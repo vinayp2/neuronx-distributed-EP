@@ -152,6 +152,7 @@ def initialize_parallel_model(nxd_config, model_fn, include_buffers: bool = Fals
             expert_model_parallel_size=nxd_config["expert_parallel_size"],
             lnc_size=nxd_config["lnc_size"],
             context_parallel_size=nxd_config["context_parallel_size"],
+            pp_aligned=nxd_config["pp_aligned"],
         )
 
     # Phase 1: get the base model

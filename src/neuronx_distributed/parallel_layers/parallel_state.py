@@ -106,52 +106,61 @@ ParallelGroups = namedtuple('ParallelGroups', ['tp_groups', 'dp_groups', 'pp_gro
 
 def ascending_ring_PG_group(lnc_size: int, cluster_ranks_nonexp: torch.tensor,
                             cluster_ranks_exp: torch.tensor,  tp: int, dp: int, pp: int, 
-                            ep_model_degree: int, ep_data_degree: int, cp:int=1) -> ParallelGroups:
+                            ep_model_degree: int, ep_data_degree: int, cp:int=1, pp_aligned:bool=False) -> ParallelGroups:
     # this function never uses lnc_size but passed along to support the fn pointer logic,
     # so its value doesnt matter eg: in case of trn1, this value doesnt matter.
     # Logic 1: Group tensor parallel group in ascending ring fashion 0 to n-1 consecutive ranks 
     # belong to one TP group -> n is the tp size
 
     # Build the tensor model-parallel groups.
+
+    outer_degree = pp
+    inner_degree = dp
+    if (pp_aligned):
+        outer_degree = dp
+        inner_degree = pp
+        
     tp_groups = [
-        cluster_ranks_nonexp[pp_rank, dp_rank, cp_rank, :].tolist()
-        for pp_rank, dp_rank, cp_rank in itertools.product(
-            range(pp),
-            range(dp),
+        cluster_ranks_nonexp[outer_rank, inner_rank, cp_rank, :].tolist()
+        for outer_rank, inner_rank, cp_rank in itertools.product(
+            range(outer_degree),
+            range(inner_degree),
             range(cp),
         )
     ]
 
     # Build the data parallel groups.
-    dp_groups = [
-        cluster_ranks_nonexp[pp_rank, :, cp_rank, tp_rank].tolist()
-        for pp_rank, cp_rank, tp_rank in itertools.product(
-            range(pp),
+    inner_groups = [
+        cluster_ranks_nonexp[outer_rank, :, cp_rank, tp_rank].tolist()
+        for outer_rank, cp_rank, tp_rank in itertools.product(
+            range(outer_degree),
             range(cp),
             range(tp),
         )
     ]
 
     # Build the pipeline model-parallel groups.
-    pp_groups = [
-        cluster_ranks_nonexp[:, dp_rank, cp_rank, tp_rank].tolist()
-        for dp_rank, cp_rank, tp_rank in itertools.product(
-            range(dp),
+    outer_groups = [
+        cluster_ranks_nonexp[:, inner_rank, cp_rank, tp_rank].tolist()
+        for inner_rank, cp_rank, tp_rank in itertools.product(
+            range(inner_degree),
             range(cp),
             range(tp),
         )
     ]
 
     cp_groups = [
-        cluster_ranks_nonexp[pp_rank, dp_rank, :, tp_rank].tolist()
-        for pp_rank, dp_rank, tp_rank in itertools.product(
-            range(pp),
-            range(dp),
+        cluster_ranks_nonexp[outer_rank, inner_rank, :, tp_rank].tolist()
+        for outer_rank, inner_rank, tp_rank in itertools.product(
+            range(outer_degree),
+            range(inner_degree),
             range(tp),
         )
     ]
 
     # Build the expert model-parallel groups
+    
+    # Not supported for EP currently
     ep_model_groups = [
         cluster_ranks_exp[pp_rank, dp_exp_rank, :, tp_rank].tolist()
         for pp_rank, dp_exp_rank, tp_rank in itertools.product(
@@ -171,7 +180,10 @@ def ascending_ring_PG_group(lnc_size: int, cluster_ranks_nonexp: torch.tensor,
         )
     ]
 
-    return ParallelGroups(tp_groups, dp_groups, pp_groups, ep_model_groups, ep_data_groups, cp_groups)
+    if pp_aligned:
+        return ParallelGroups(tp_groups, outer_groups, inner_groups, ep_model_groups, ep_data_groups, cp_groups)
+    else:
+        return ParallelGroups(tp_groups, inner_groups, outer_groups, ep_model_groups, ep_data_groups, cp_groups)
 
 
 def ascending_descending_ring_PG_group(lnc_size: int, cluster_ranks_nonexp: torch.tensor,
@@ -388,6 +400,7 @@ def initialize_model_parallel(
     skip_collective_init: bool = False,
     lnc_size: int = 1,
     mesh_only: bool = False,
+    pp_aligned: bool = False,
 ):
     """
     Initialize model data parallel groups.
@@ -654,7 +667,8 @@ def initialize_model_parallel(
     replica_groups = allocate_ranks_fn(lnc_size, cluster_ranks_nonexp, cluster_ranks_exp,
                                         tensor_model_parallel_size, data_parallel_size, 
                                         pipeline_model_parallel_size, expert_model_parallel_size,
-                                        expert_data_parallel_size, context_parallel_size)
+                                        expert_data_parallel_size, context_parallel_size, 
+                                        pp_aligned)
     
     logger.info(rmsg(f"tp_groups: {replica_groups.tp_groups=}"))
     logger.info(rmsg(f"dp_groups: {replica_groups.dp_groups=}"))
