@@ -161,27 +161,28 @@ def ascending_ring_PG_group(lnc_size: int, cluster_ranks_nonexp: torch.tensor,
     # Build the expert model-parallel groups
     
     # Not supported for EP currently
-    ep_model_groups = [
-        cluster_ranks_exp[pp_rank, dp_exp_rank, :, tp_rank].tolist()
-        for pp_rank, dp_exp_rank, tp_rank in itertools.product(
-            range(pp),
-            range(ep_data_degree),
-            range(tp),
-        )
-    ]
+    ep_model_groups = []
+    ep_data_groups = []
+    if not pp_aligned: 
+        ep_model_groups = [
+            cluster_ranks_exp[pp_rank, dp_exp_rank, :, tp_rank].tolist()
+            for pp_rank, dp_exp_rank, tp_rank in itertools.product(
+                range(pp),
+                range(ep_data_degree),
+                range(tp),
+            )
+        ]
 
-    # Build the expert data-parallel groups.
-    ep_data_groups = [
-        cluster_ranks_exp[pp_rank, :, ep_rank, tp_rank].tolist()
-        for pp_rank, ep_rank, tp_rank in itertools.product(
-            range(pp),
-            range(ep_model_degree),
-            range(tp),
-        )
-    ]
-
-    if pp_aligned:
-        # No EP support, just for completeness
+        # Build the expert data-parallel groups.
+        ep_data_groups = [
+            cluster_ranks_exp[pp_rank, :, ep_rank, tp_rank].tolist()
+            for pp_rank, ep_rank, tp_rank in itertools.product(
+                range(pp),
+                range(ep_model_degree),
+                range(tp),
+            )
+        ]
+    else:
         ep_model_groups = [
             cluster_ranks_exp[dp_exp_rank, pp_rank, :, tp_rank].tolist()
             for dp_exp_rank, pp_rank, tp_rank in itertools.product(
@@ -198,6 +199,8 @@ def ascending_ring_PG_group(lnc_size: int, cluster_ranks_nonexp: torch.tensor,
                 range(tp),
             )
         ]
+    if pp_aligned:
+        # No EP support, just for completeness
         return ParallelGroups(tp_groups, outer_groups, inner_groups, ep_model_groups, ep_data_groups, cp_groups)
     else:
         return ParallelGroups(tp_groups, inner_groups, outer_groups, ep_model_groups, ep_data_groups, cp_groups)
