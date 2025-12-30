@@ -181,6 +181,23 @@ def ascending_ring_PG_group(lnc_size: int, cluster_ranks_nonexp: torch.tensor,
     ]
 
     if pp_aligned:
+        # No EP support, just for completeness
+        ep_model_groups = [
+            cluster_ranks_exp[dp_exp_rank, pp_rank, :, tp_rank].tolist()
+            for dp_exp_rank, pp_rank, tp_rank in itertools.product(
+                range(ep_data_degree),
+                range(pp),
+                range(tp),
+            )
+        ]
+        ep_data_groups = [
+            cluster_ranks_exp[:, pp_rank, ep_rank, tp_rank].tolist()
+            for pp_rank, ep_rank, tp_rank in itertools.product(
+                range(pp),
+                range(ep_model_degree),
+                range(tp),
+            )
+        ]
         return ParallelGroups(tp_groups, outer_groups, inner_groups, ep_model_groups, ep_data_groups, cp_groups)
     else:
         return ParallelGroups(tp_groups, inner_groups, outer_groups, ep_model_groups, ep_data_groups, cp_groups)
@@ -637,6 +654,14 @@ def initialize_model_parallel(
         if (pp_aligned):
             outer_size = data_parallel_size
             inner_size = pipeline_model_parallel_size
+            cluster_ranks_exp = cluster_ranks.reshape(
+                [
+                    expert_data_parallel_size,
+                    pipeline_model_parallel_size,
+                    expert_model_parallel_size,
+                    tensor_model_parallel_size,  # important: contiguous parallelism dimension
+                ]
+            )
         cluster_ranks_nonexp = cluster_ranks.reshape(
             [
                 outer_size,
